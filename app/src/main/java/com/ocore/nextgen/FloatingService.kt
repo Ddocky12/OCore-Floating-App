@@ -3,7 +3,6 @@ package com.ocore.nextgen
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
-import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
@@ -19,6 +18,7 @@ import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import org.json.JSONObject
 import java.io.File
+import kotlin.math.abs
 
 class FloatingService : Service() {
     private lateinit var windowManager: WindowManager
@@ -38,11 +38,11 @@ class FloatingService : Service() {
     private fun setupFloatingView() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         floatingView = TextView(this).apply {
-            text = "FPS: -- | Temp: --"
+            text = "FPS: -- | OCore"
             setTextColor(Color.GREEN)
-            setBackgroundColor(Color.argb(150, 0, 0, 0))
-            setPadding(20, 10, 20, 10)
-            textSize = 12f
+            setBackgroundColor(Color.argb(200, 0, 0, 0))
+            setPadding(30, 15, 30, 15)
+            textSize = 14f
         }
 
         val params = WindowManager.LayoutParams(
@@ -59,12 +59,12 @@ class FloatingService : Service() {
             y = 100
         }
 
-        // Logika drag-and-drop pill
         floatingView.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
             private var initialTouchX = 0f
             private var initialTouchY = 0f
+            private var isClick = false
 
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 when (event.action) {
@@ -73,12 +73,28 @@ class FloatingService : Service() {
                         initialY = params.y
                         initialTouchX = event.rawX
                         initialTouchY = event.rawY
+                        isClick = true
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        params.x = initialX + (event.rawX - initialTouchX).toInt()
-                        params.y = initialY + (event.rawY - initialTouchY).toInt()
+                        val dx = event.rawX - initialTouchX
+                        val dy = event.rawY - initialTouchY
+                        // Jika bergeser lebih dari 10 pixel, anggap ini drag, bukan tap
+                        if (abs(dx) > 10 || abs(dy) > 10) {
+                            isClick = false
+                        }
+                        params.x = initialX + dx.toInt()
+                        params.y = initialY + dy.toInt()
                         windowManager.updateViewLayout(floatingView, params)
+                        return true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        // Jika ini adalah Tap (tidak banyak bergeser), buka Control Panel
+                        if (isClick) {
+                            val intent = Intent(this@FloatingService, ControlPanelActivity::class.java)
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            startActivity(intent)
+                        }
                         return true
                     }
                 }
@@ -93,25 +109,13 @@ class FloatingService : Service() {
         handler.post(object : Runnable {
             override fun run() {
                 try {
-                    // Membaca status IPC (Inter-Process Communication)
                     if (statusFile.exists()) {
                         val json = JSONObject(statusFile.readText())
-                        val isGame = json.optBoolean("is_game", false)
                         val engine = json.optString("engine_state", "--")
-                        
-                        if (isGame) {
-                            floatingView.visibility = View.VISIBLE
-                            floatingView.text = "OCore: $engine\nGAME DETECTED"
-                        } else {
-                            // Sembunyikan jika bukan game (sesuai instruksi auto-hide)
-                            floatingView.text = "OCore: Idle"
-                        }
-                    } else {
-                        floatingView.text = "No Data"
+                        val activeGame = json.optString("active_game", "None")
+                        floatingView.text = "OCore: $engine\nGame: $activeGame"
                     }
-                } catch (e: Exception) {
-                    floatingView.text = "Error"
-                }
+                } catch (e: Exception) {}
                 handler.postDelayed(this, 2000)
             }
         })
@@ -125,7 +129,6 @@ class FloatingService : Service() {
         }
         return NotificationCompat.Builder(this, channelId)
             .setContentTitle("OCore NextGen Aktif")
-            .setContentText("Memantau status game dan hardware")
             .setSmallIcon(android.R.drawable.ic_menu_manage)
             .build()
     }

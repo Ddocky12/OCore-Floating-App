@@ -2,7 +2,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.ocore.nextgen">
 
-    <!-- Izin untuk Floating Overlay & Sistem -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
@@ -20,6 +19,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Mendaftarkan halaman Control Panel -->
+        <activity android:name=".ControlPanelActivity" 
+                  android:exported="false"
+                  android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
 
         <service 
             android:name=".FloatingService"
